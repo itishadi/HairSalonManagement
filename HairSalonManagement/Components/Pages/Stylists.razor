@@ -1,0 +1,94 @@
+﻿@page "/stylists"
+@rendermode InteractiveServer
+
+@using HairSalonManagement.Models
+@using HairSalonManagement.Data
+@using Microsoft.AspNetCore.Authorization
+@* @attribute [Authorize(Roles = "Admin")] *@
+@attribute [Authorize]
+
+@inject ApplicationDbContext Db
+
+<h3>Stylists</h3>
+
+<input @bind="newStylist.FirstName" placeholder="First Name" />
+<input @bind="newStylist.LastName" placeholder="Last Name" />
+<input @bind="newStylist.Specialization" placeholder="Specialization" />
+
+<button @onclick="AddStylist">
+    Add Stylist
+</button>
+
+<hr />
+
+<table class="table">
+    <thead>
+        <tr>
+            <th>Name</th>
+            <th>Specialization</th>
+            <th></th>
+        </tr>
+    </thead>
+
+    <tbody>
+        @foreach (var stylist in stylists)
+        {
+            <tr>
+                <td>
+                    @stylist.FirstName
+                    @stylist.LastName
+                </td>
+
+                <td>
+                    @stylist.Specialization
+                </td>
+
+                <td>
+                    <button @onclick="() => DeleteStylist(stylist.StylistId)">
+                        Delete
+                    </button>
+                </td>
+            </tr>
+        }
+    </tbody>
+</table>
+
+@code {
+
+    private List<Stylist> stylists = new();
+
+    private Stylist newStylist = new();
+
+    protected override void OnInitialized()
+    {
+        LoadStylists();
+    }
+
+    private void LoadStylists()
+    {
+        stylists = Db.Stylists.ToList();
+    }
+
+    private void AddStylist()
+    {
+        Db.Stylists.Add(newStylist);
+        Db.SaveChanges();
+
+        newStylist = new Stylist();
+
+        LoadStylists();
+    }
+
+    private void DeleteStylist(int id)
+    {
+        var stylist = Db.Stylists.Find(id);
+
+        if (stylist != null)
+        {
+            Db.Stylists.Remove(stylist);
+            Db.SaveChanges();
+
+            LoadStylists();
+        }
+    }
+}

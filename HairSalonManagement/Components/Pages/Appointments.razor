@@ -1,0 +1,133 @@
+﻿@page "/appointments"
+@rendermode InteractiveServer
+
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Components.Authorization
+@using Microsoft.EntityFrameworkCore
+@using HairSalonManagement.Models
+@using HairSalonManagement.Data
+
+@attribute [Authorize]
+
+@inject ApplicationDbContext Db
+
+<h3>Book Appointment</h3>
+
+<select @bind="appointment.ServiceId">
+    <option value="0">Choose Service</option>
+
+    @foreach (var service in services)
+    {
+        <option value="@service.ServiceId">
+            @service.Name
+        </option>
+    }
+</select>
+
+<select @bind="appointment.StylistId">
+    <option value="0">Choose Stylist</option>
+
+    @foreach (var stylist in stylists)
+    {
+        <option value="@stylist.StylistId">
+            @stylist.FirstName @stylist.LastName
+        </option>
+    }
+</select>
+
+<br />
+<br />
+
+<input type="date" @bind="selectedDate" />
+
+<button @onclick="CreateAppointment">
+    Book Appointment
+</button>
+
+<hr />
+
+<h4>Appointments</h4>
+
+<table class="table">
+
+    <thead>
+        <tr>
+            <th>Date</th>
+            <th>Service</th>
+            <th>Stylist</th>
+            <th>Status</th>
+        </tr>
+    </thead>
+
+    <tbody>
+
+        @foreach (var item in appointments)
+        {
+            <tr>
+                <td>@item.AppointmentDate.ToShortDateString()</td>
+                <td>@item.Service?.Name</td>
+                <td>@item.Stylist?.FirstName @item.Stylist?.LastName</td>
+                <td>@item.Status</td>
+            </tr>
+        }
+
+    </tbody>
+
+</table>
+
+@code {
+
+    private Appointment appointment = new();
+
+    private List<Service> services = new();
+
+    private List<Stylist> stylists = new();
+
+    private List<Appointment> appointments = new();
+
+    private DateTime selectedDate = DateTime.Today;
+
+    [CascadingParameter]
+    private Task<AuthenticationState>? AuthenticationStateTask { get; set; }
+
+    protected override void OnInitialized()
+    {
+        services = Db.Services.ToList();
+
+        stylists = Db.Stylists.ToList();
+
+        LoadAppointments();
+    }
+
+    private void LoadAppointments()
+    {
+        appointments = Db.Appointments
+            .Include(a => a.Service)
+            .Include(a => a.Stylist)
+            .ToList();
+    }
+
+    private async Task CreateAppointment()
+    {
+        var authState = await AuthenticationStateTask!;
+
+        var userId = authState.User.FindFirst(
+            System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+
+        appointment.CustomerId = userId ?? "";
+
+        appointment.AppointmentDate = selectedDate;
+
+        appointment.Status = "Pending";
+
+        Db.Appointments.Add(appointment);
+
+        Db.SaveChanges();
+
+        appointment = new Appointment();
+
+        selectedDate = DateTime.Today;
+
+        LoadAppointments();
+    }
+}

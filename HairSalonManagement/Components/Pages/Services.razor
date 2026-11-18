@@ -1,0 +1,94 @@
+﻿@page "/services"
+@rendermode InteractiveServer
+
+@using HairSalonManagement.Models
+@using HairSalonManagement.Data
+@using Microsoft.AspNetCore.Authorization
+
+@* @attribute [Authorize(Roles = "Admin")] *@
+@attribute [Authorize]
+
+@inject ApplicationDbContext Db
+
+
+<h3>Services</h3>
+<p>Services count: @services.Count</p>
+
+<input @bind="newService.Name" placeholder="Name" />
+<input @bind="newService.Description" placeholder="Description" />
+<input type="number" @bind="newService.Price" placeholder="Price" />
+<input type="number" @bind="newService.DurationMinutes" placeholder="Duration" />
+<input @bind="newService.Category" placeholder="Category" />
+
+<button @onclick="AddService">Add Service</button>
+
+<hr />
+
+<table class="table">
+    <thead>
+        <tr>
+            <th>Name</th>
+            <th>Price</th>
+            <th>Duration</th>
+            <th>Category</th>
+            <th></th>
+        </tr>
+    </thead>
+
+    <tbody>
+        @foreach (var service in services)
+        {
+            <tr>
+                <td>@service.Name</td>
+                <td>@service.Price kr</td>
+                <td>@service.DurationMinutes min</td>
+                <td>@service.Category</td>
+                <td>
+                    <button @onclick="() => DeleteService(service.ServiceId)">
+                        Delete
+                    </button>
+                </td>
+            </tr>
+        }
+    </tbody>
+</table>
+
+@code {
+
+    private List<Service> services = new();
+
+    private Service newService = new();
+
+    protected override void OnInitialized()
+    {
+        LoadServices();
+    }
+
+    private void LoadServices()
+    {
+        services = Db.Services.ToList();
+    }
+
+    private void AddService()
+    {
+        Db.Services.Add(newService);
+        Db.SaveChanges();
+
+        newService = new Service();
+
+        LoadServices();
+    }
+
+    private void DeleteService(int id)
+    {
+        var service = Db.Services.Find(id);
+
+        if (service is not null)
+        {
+            Db.Services.Remove(service);
+            Db.SaveChanges();
+
+            LoadServices();
+        }
+    }
+}

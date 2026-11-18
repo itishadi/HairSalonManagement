@@ -1,0 +1,63 @@
+﻿@page "/myappointments"
+@rendermode InteractiveServer
+
+@using HairSalonManagement.Models
+@using HairSalonManagement.Data
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Components.Authorization
+@using Microsoft.EntityFrameworkCore
+
+@attribute [Authorize]
+
+@inject ApplicationDbContext Db
+
+<h3>My Appointments</h3>
+
+<table class="table">
+
+    <thead>
+        <tr>
+            <th>Date</th>
+            <th>Service</th>
+            <th>Stylist</th>
+            <th>Status</th>
+        </tr>
+    </thead>
+
+    <tbody>
+
+        @foreach (var appointment in appointments)
+        {
+            <tr>
+                <td>@appointment.AppointmentDate.ToShortDateString()</td>
+                <td>@appointment.Service?.Name</td>
+                <td>@appointment.Stylist?.FirstName @appointment.Stylist?.LastName</td>
+                <td>@appointment.Status</td>
+            </tr>
+        }
+
+    </tbody>
+
+</table>
+
+@code {
+
+    private List<Appointment> appointments = new();
+
+    [CascadingParameter]
+    private Task<AuthenticationState>? AuthenticationStateTask { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthenticationStateTask!;
+
+        var userId = authState.User.FindFirst(
+            System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+
+        appointments = Db.Appointments
+            .Include(a => a.Service)
+            .Include(a => a.Stylist)
+            .Where(a => a.CustomerId == userId)
+            .ToList();
+    }
+}

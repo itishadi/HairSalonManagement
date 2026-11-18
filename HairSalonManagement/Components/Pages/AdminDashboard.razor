@@ -1,0 +1,26 @@
+﻿@page "/admin-dashboard"
+@rendermode InteractiveServer
+
+@using HairSalonManagement.Data
+
+@inject ApplicationDbContext Db
+
+<h3>Admin Dashboard</h3>
+
+<p>Total Services: @servicesCount</p>
+<p>Total Stylists: @stylistsCount</p>
+<p>Total Appointments: @appointmentsCount</p>
+
+@code {
+
+    private int servicesCount;
+    private int stylistsCount;
+    private int appointmentsCount;
+
+    protected override void OnInitialized()
+    {
+        servicesCount = Db.Services.Count();
+        stylistsCount = Db.Stylists.Count();
+        appointmentsCount = Db.Appointments.Count();
+    }
+}
