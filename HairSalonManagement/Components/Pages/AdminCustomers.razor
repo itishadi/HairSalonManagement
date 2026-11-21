@@ -1,0 +1,91 @@
+﻿@page "/admin-customers"
+@rendermode InteractiveServer
+
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Identity
+@using HairSalonManagement.Data
+@using HairSalonManagement.Models
+
+@attribute [Authorize(Roles = "Admin")]
+
+@inject UserManager<ApplicationUser> UserManager
+@inject ApplicationDbContext Db
+
+<h3>Customer Management</h3>
+
+<table class="table">
+    <thead>
+        <tr>
+            <th>Name</th>
+            <th>Email</th>
+            <th>Favorite Stylist</th>
+            <th>Appointments</th>
+        </tr>
+    </thead>
+
+    <tbody>
+
+        @foreach (var customer in customers)
+        {
+            <tr>
+
+                <td>
+                    @if (string.IsNullOrWhiteSpace(customer.FirstName))
+                    {
+                        @customer.Email
+                    }
+                    else
+                    {
+                        @($"{customer.FirstName} {customer.LastName}")
+                    }
+                </td>
+
+                <td>
+                    @customer.Email
+                </td>
+
+                <td>
+                    @GetFavoriteStylist(customer)
+                </td>
+
+                <td>
+                    @GetAppointmentCount(customer.Id)
+                </td>
+
+            </tr>
+        }
+
+    </tbody>
+</table>
+
+@code {
+
+    private List<ApplicationUser> customers = new();
+
+    protected override void OnInitialized()
+    {
+        customers = UserManager.Users
+            .OrderBy(u => u.Email)
+            .ToList();
+    }
+
+    private int GetAppointmentCount(string customerId)
+    {
+        return Db.Appointments
+            .Count(a => a.CustomerId == customerId);
+    }
+
+    private string GetFavoriteStylist(ApplicationUser customer)
+    {
+        if (customer.FavoriteStylistId == null)
+            return "-";
+
+        var stylist = Db.Stylists
+            .FirstOrDefault(s => s.StylistId == customer.FavoriteStylistId);
+
+        if (stylist == null)
+            return "-";
+
+        return $"{stylist.FirstName} {stylist.LastName}";
+    }
+}

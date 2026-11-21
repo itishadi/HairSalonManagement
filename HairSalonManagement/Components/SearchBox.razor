@@ -1,0 +1,14 @@
+﻿<input class="form-control"
+       placeholder="Search..."
+       @bind="SearchText"
+       @bind:event="oninput" />
+
+@code {
+
+    [Parameter]
+    public string SearchText { get; set; } = "";
+
+    [Parameter]
+    public EventCallback<string> SearchTextChanged { get; set; }
+
+}

@@ -47,6 +47,10 @@ builder.Services.AddSingleton<
     IEmailSender<ApplicationUser>,
     IdentityNoOpEmailSender>();
 
+builder.Services.AddControllers();
+
+builder.Services.AddHttpClient();
+
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.
@@ -89,6 +93,7 @@ using (var scope = app.Services.CreateScope())
 }
 
 
+
 app.UseHttpsRedirection();
 
 app.UseAntiforgery();
@@ -99,5 +104,6 @@ app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode();
 
 app.MapAdditionalIdentityEndpoints();
+app.MapControllers();
 
 app.Run();

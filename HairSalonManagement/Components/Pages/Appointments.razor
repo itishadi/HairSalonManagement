@@ -20,6 +20,7 @@
     {
         <option value="@service.ServiceId">
             @service.Name
+            @service.Description
         </option>
     }
 </select>
@@ -30,7 +31,9 @@
     @foreach (var stylist in stylists)
     {
         <option value="@stylist.StylistId">
-            @stylist.FirstName @stylist.LastName
+            @stylist.FirstName 
+            @stylist.LastName
+            @stylist.Specialization
         </option>
     }
 </select>
@@ -40,39 +43,38 @@
 
 <input type="date" @bind="selectedDate" />
 
-<button @onclick="CreateAppointment">
+<button class="btn btn-primary"
+        @onclick="CreateAppointment">
     Book Appointment
 </button>
 
 <hr />
 
-<h4>Appointments</h4>
+<h4>My Appointments</h4>
 
 <table class="table">
-
     <thead>
         <tr>
             <th>Date</th>
             <th>Service</th>
+            <th>Category</th>
             <th>Stylist</th>
             <th>Status</th>
         </tr>
     </thead>
 
     <tbody>
-
         @foreach (var item in appointments)
         {
             <tr>
                 <td>@item.AppointmentDate.ToShortDateString()</td>
                 <td>@item.Service?.Name</td>
+                <td>@item.Service?.Category</td>
                 <td>@item.Stylist?.FirstName @item.Stylist?.LastName</td>
                 <td>@item.Status</td>
             </tr>
         }
-
     </tbody>
-
 </table>
 
 @code {
@@ -90,21 +92,27 @@
     [CascadingParameter]
     private Task<AuthenticationState>? AuthenticationStateTask { get; set; }
 
-    protected override void OnInitialized()
+    protected override async Task OnInitializedAsync()
     {
-        services = Db.Services.ToList();
+        services = await Db.Services.ToListAsync();
 
-        stylists = Db.Stylists.ToList();
+        stylists = await Db.Stylists.ToListAsync();
 
-        LoadAppointments();
+        await LoadAppointments();
     }
 
-    private void LoadAppointments()
+    private async Task LoadAppointments()
     {
-        appointments = Db.Appointments
+        var authState = await AuthenticationStateTask!;
+
+        var userId = authState.User.FindFirst(
+            System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+
+        appointments = await Db.Appointments
             .Include(a => a.Service)
             .Include(a => a.Stylist)
-            .ToList();
+            .Where(a => a.CustomerId == userId)
+            .ToListAsync();
     }
 
     private async Task CreateAppointment()
@@ -114,6 +122,12 @@
         var userId = authState.User.FindFirst(
             System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
 
+        if (appointment.ServiceId == 0 ||
+            appointment.StylistId == 0)
+        {
+            return;
+        }
+
         appointment.CustomerId = userId ?? "";
 
         appointment.AppointmentDate = selectedDate;
@@ -122,12 +136,12 @@
 
         Db.Appointments.Add(appointment);
 
-        Db.SaveChanges();
+        await Db.SaveChangesAsync();
 
         appointment = new Appointment();
 
         selectedDate = DateTime.Today;
 
-        LoadAppointments();
+        await LoadAppointments();
     }
 }

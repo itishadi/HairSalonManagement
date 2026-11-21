@@ -1,0 +1,162 @@
+﻿@page "/favorite-stylist"
+@rendermode InteractiveServer
+
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Components.Authorization
+@using Microsoft.AspNetCore.Identity
+@using HairSalonManagement.Data
+@using HairSalonManagement.Models
+
+@attribute [Authorize]
+
+@inject ApplicationDbContext Db
+@inject UserManager<ApplicationUser> UserManager
+
+<h3>Favorite Stylist</h3>
+
+<div class="mb-3">
+
+    <select @bind="selectedStylistId" class="form-select">
+
+        <option value="@((int?)null)">
+            Choose Stylist
+        </option>
+
+        @foreach (var stylist in stylists)
+        {
+            <option value="@stylist.StylistId">
+                @stylist.FirstName @stylist.LastName
+            </option>
+        }
+
+    </select>
+
+</div>
+
+<div class="mb-3">
+
+    <button class="btn btn-primary"
+            @onclick="SaveFavoriteStylist">
+        Save Favorite Stylist
+    </button>
+
+    <button class="btn btn-danger"
+            @onclick="RemoveFavoriteStylist">
+        Remove Favorite Stylist
+    </button>
+
+</div>
+
+@if (!string.IsNullOrWhiteSpace(message))
+{
+    <div class="alert alert-info">
+        @message
+    </div>
+}
+
+@if (favoriteStylist != null)
+{
+    <div class="card p-3 mt-3">
+
+        <h4>Your Favorite Stylist</h4>
+
+        <p>
+            <strong>Name:</strong>
+            @favoriteStylist.FirstName
+            @favoriteStylist.LastName
+        </p>
+
+        <p>
+            <strong>Specialization:</strong>
+            @favoriteStylist.Specialization
+        </p>
+
+        <p>
+            <strong>Available:</strong>
+            @(favoriteStylist.IsAvailable ? "Yes" : "No")
+        </p>
+
+    </div>
+}
+
+@code {
+
+    private List<Stylist> stylists = new();
+
+    private Stylist? favoriteStylist;
+
+    private int? selectedStylistId;
+
+    private string message = "";
+
+    [CascadingParameter]
+    private Task<AuthenticationState>? AuthenticationStateTask { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        stylists = Db.Stylists
+            .OrderBy(s => s.FirstName)
+            .ToList();
+
+        var authState = await AuthenticationStateTask!;
+
+        var user = await UserManager.GetUserAsync(authState.User);
+
+        if (user != null)
+        {
+            selectedStylistId = user.FavoriteStylistId;
+
+            if (user.FavoriteStylistId.HasValue)
+            {
+                favoriteStylist = Db.Stylists
+                    .FirstOrDefault(s =>
+                        s.StylistId == user.FavoriteStylistId.Value);
+            }
+        }
+    }
+
+    private async Task SaveFavoriteStylist()
+    {
+        if (selectedStylistId == null)
+        {
+            message = "Please choose a stylist.";
+            return;
+        }
+
+        var authState = await AuthenticationStateTask!;
+
+        var user = await UserManager.GetUserAsync(authState.User);
+
+        if (user == null)
+            return;
+
+        user.FavoriteStylistId = selectedStylistId;
+
+        await UserManager.UpdateAsync(user);
+
+        favoriteStylist = Db.Stylists
+            .FirstOrDefault(s => s.StylistId == selectedStylistId);
+
+        message = "Favorite stylist saved.";
+    }
+
+    private async Task RemoveFavoriteStylist()
+    {
+        var authState = await AuthenticationStateTask!;
+
+        var user = await UserManager.GetUserAsync(authState.User);
+
+        if (user == null)
+            return;
+
+        user.FavoriteStylistId = null;
+
+        await UserManager.UpdateAsync(user);
+
+        selectedStylistId = null;
+
+        favoriteStylist = null;
+
+        message = "Favorite stylist removed.";
+    }
+}

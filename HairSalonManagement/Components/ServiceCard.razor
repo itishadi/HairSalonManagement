@@ -1,0 +1,18 @@
+﻿@using HairSalonManagement.Models
+
+<div class="card p-3 mb-2">
+    <h5>@Service.Name</h5>
+
+    <p>@Service.Description</p>
+
+    <p>@Service.Price kr</p>
+
+    <p>@Service.Category</p>
+</div>
+
+@code {
+
+    [Parameter]
+    public Service Service { get; set; } = default!;
+
+}

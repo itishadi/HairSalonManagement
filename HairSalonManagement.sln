@@ -1,7 +1,7 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
-VisualStudioVersion = 17.14.37906.3 d17.14
+VisualStudioVersion = 17.14.37906.3
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "HairSalonManagement", "HairSalonManagement\HairSalonManagement.csproj", "{9A301703-8DE0-4C66-8875-37FCA42D8619}"
 EndProject

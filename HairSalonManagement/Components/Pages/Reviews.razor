@@ -1,0 +1,145 @@
+﻿@page "/reviews"
+@rendermode InteractiveServer
+
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Components.Authorization
+@using HairSalonManagement.Data
+@using HairSalonManagement.Models
+
+@attribute [Authorize]
+
+@inject ApplicationDbContext Db
+
+<h3>Review Stylist</h3>
+
+<select @bind="review.StylistId">
+    <option value="0">Choose Stylist</option>
+
+    @foreach (var stylist in stylists)
+    {
+        <option value="@stylist.StylistId">
+            @stylist.FirstName @stylist.LastName
+        </option>
+    }
+</select>
+
+<br />
+<br />
+
+<select @bind="review.Rating">
+    <option value="1">1 Star</option>
+    <option value="2">2 Stars</option>
+    <option value="3">3 Stars</option>
+    <option value="4">4 Stars</option>
+    <option value="5">5 Stars</option>
+</select>
+
+<br />
+<br />
+
+<textarea @bind="review.Comment"
+          placeholder="Write review">
+</textarea>
+
+<br />
+<br />
+
+<button class="btn btn-primary"
+        @onclick="SaveReview">
+    Save Review
+</button>
+
+<hr />
+
+<h4>Reviews</h4>
+
+<table class="table">
+    <thead>
+        <tr>
+            <th>Stylist</th>
+            <th>Rating</th>
+            <th>Comment</th>
+            <th>Date</th>
+        </tr>
+    </thead>
+
+    <tbody>
+
+        @foreach (var item in reviews)
+        {
+            <tr>
+                <td>
+                    @GetStylistName(item.StylistId)
+                </td>
+
+                <td>
+                    @item.Rating / 5
+                </td>
+
+                <td>
+                    @item.Comment
+                </td>
+
+                <td>
+                    @item.CreatedDate.ToShortDateString()
+                </td>
+            </tr>
+        }
+
+    </tbody>
+</table>
+
+@code {
+
+    private Review review = new();
+
+    private List<Review> reviews = new();
+
+    private List<Stylist> stylists = new();
+
+    [CascadingParameter]
+    private Task<AuthenticationState>? AuthenticationStateTask { get; set; }
+
+    protected override void OnInitialized()
+    {
+        stylists = Db.Stylists.ToList();
+
+        reviews = Db.Reviews
+            .OrderByDescending(r => r.CreatedDate)
+            .ToList();
+    }
+
+    private async Task SaveReview()
+    {
+        var authState = await AuthenticationStateTask!;
+
+        var userId = authState.User.FindFirst(
+            System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+
+        if (review.StylistId == 0)
+            return;
+
+        review.CustomerId = userId ?? "";
+
+        Db.Reviews.Add(review);
+
+        Db.SaveChanges();
+
+        review = new Review();
+
+        reviews = Db.Reviews
+            .OrderByDescending(r => r.CreatedDate)
+            .ToList();
+    }
+
+    private string GetStylistName(int stylistId)
+    {
+        var stylist = Db.Stylists
+            .FirstOrDefault(s => s.StylistId == stylistId);
+
+        if (stylist == null)
+            return "-";
+
+        return $"{stylist.FirstName} {stylist.LastName}";
+    }
+}

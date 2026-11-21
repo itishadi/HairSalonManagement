@@ -10,4 +10,6 @@ public class ApplicationUser : IdentityUser
 
     public DateTime RegistrationDate { get; set; }
         = DateTime.Now;
+
+    public int? FavoriteStylistId { get; set; }
 }

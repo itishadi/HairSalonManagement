@@ -17,4 +17,5 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
     public DbSet<Stylist> Stylists { get; set; }
 
     public DbSet<Appointment> Appointments { get; set; }
+    public DbSet<Review> Reviews { get; set; }
 }

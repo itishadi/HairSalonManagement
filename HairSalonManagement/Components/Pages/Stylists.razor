@@ -4,52 +4,88 @@
 @using HairSalonManagement.Models
 @using HairSalonManagement.Data
 @using Microsoft.AspNetCore.Authorization
-@* @attribute [Authorize(Roles = "Admin")] *@
-@attribute [Authorize]
+
+@attribute [Authorize(Roles = "Admin")]
 
 @inject ApplicationDbContext Db
 
 <h3>Stylists</h3>
 
-<input @bind="newStylist.FirstName" placeholder="First Name" />
-<input @bind="newStylist.LastName" placeholder="Last Name" />
-<input @bind="newStylist.Specialization" placeholder="Specialization" />
+<p>Stylists count: @stylists.Count</p>
 
-<button @onclick="AddStylist">
-    Add Stylist
-</button>
+<div class="mb-3">
+
+    <input @bind="newStylist.FirstName"
+           placeholder="First Name" />
+
+    <input @bind="newStylist.LastName"
+           placeholder="Last Name" />
+
+    <input @bind="newStylist.Specialization"
+           placeholder="Specialization" />
+
+    @if (isEditing)
+    {
+        <button class="btn btn-warning"
+                @onclick="SaveStylist">
+            Update Stylist
+        </button>
+
+        <button class="btn btn-secondary"
+                @onclick="CancelEdit">
+            Cancel
+        </button>
+    }
+    else
+    {
+        <button class="btn btn-primary"
+                @onclick="SaveStylist">
+            Add Stylist
+        </button>
+    }
+
+</div>
+
+@if (!string.IsNullOrEmpty(message))
+{
+    <p class="text-danger">@message</p>
+}
 
 <hr />
 
 <table class="table">
     <thead>
         <tr>
-            <th>Name</th>
+            <th>First Name</th>
+            <th>Last Name</th>
             <th>Specialization</th>
-            <th></th>
+            <th>Actions</th>
         </tr>
     </thead>
 
     <tbody>
+
         @foreach (var stylist in stylists)
         {
             <tr>
-                <td>
-                    @stylist.FirstName
-                    @stylist.LastName
-                </td>
+                <td>@stylist.FirstName</td>
+                <td>@stylist.LastName</td>
+                <td>@stylist.Specialization</td>
 
                 <td>
-                    @stylist.Specialization
-                </td>
+                    <button class="btn btn-sm btn-warning"
+                            @onclick="() => EditStylist(stylist)">
+                        Edit
+                    </button>
 
-                <td>
-                    <button @onclick="() => DeleteStylist(stylist.StylistId)">
+                    <button class="btn btn-sm btn-danger"
+                            @onclick="() => DeleteStylist(stylist.StylistId)">
                         Delete
                     </button>
                 </td>
             </tr>
         }
+
     </tbody>
 </table>
 
@@ -59,6 +95,10 @@
 
     private Stylist newStylist = new();
 
+    private bool isEditing = false;
+
+    private string message = "";
+
     protected override void OnInitialized()
     {
         LoadStylists();
@@ -66,29 +106,80 @@
 
     private void LoadStylists()
     {
-        stylists = Db.Stylists.ToList();
+        stylists = Db.Stylists
+            .OrderBy(s => s.FirstName)
+            .ThenBy(s => s.LastName)
+            .ToList();
     }
 
-    private void AddStylist()
+    private void SaveStylist()
     {
-        Db.Stylists.Add(newStylist);
+        message = "";
+
+        if (string.IsNullOrWhiteSpace(newStylist.FirstName))
+        {
+            message = "First name is required.";
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(newStylist.LastName))
+        {
+            message = "Last name is required.";
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(newStylist.Specialization))
+        {
+            message = "Specialization is required.";
+            return;
+        }
+
+        if (newStylist.StylistId == 0)
+        {
+            Db.Stylists.Add(newStylist);
+        }
+
         Db.SaveChanges();
 
         newStylist = new Stylist();
 
+        isEditing = false;
+
         LoadStylists();
+    }
+
+    private void EditStylist(Stylist stylist)
+    {
+        newStylist = stylist;
+
+        isEditing = true;
+    }
+
+    private void CancelEdit()
+    {
+        newStylist = new Stylist();
+
+        isEditing = false;
+
+        message = "";
     }
 
     private void DeleteStylist(int id)
     {
         var stylist = Db.Stylists.Find(id);
 
-        if (stylist != null)
-        {
-            Db.Stylists.Remove(stylist);
-            Db.SaveChanges();
+        if (stylist is null)
+            return;
 
-            LoadStylists();
+        Db.Stylists.Remove(stylist);
+
+        Db.SaveChanges();
+
+        LoadStylists();
+
+        if (newStylist.StylistId == id)
+        {
+            CancelEdit();
         }
     }
 }

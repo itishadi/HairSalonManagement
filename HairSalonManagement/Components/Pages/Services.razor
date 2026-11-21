@@ -5,22 +5,71 @@
 @using HairSalonManagement.Data
 @using Microsoft.AspNetCore.Authorization
 
-@* @attribute [Authorize(Roles = "Admin")] *@
-@attribute [Authorize]
+@attribute [Authorize(Roles = "Admin")]
 
+@inject HttpClient Http
 @inject ApplicationDbContext Db
 
-
 <h3>Services</h3>
+
 <p>Services count: @services.Count</p>
 
-<input @bind="newService.Name" placeholder="Name" />
-<input @bind="newService.Description" placeholder="Description" />
-<input type="number" @bind="newService.Price" placeholder="Price" />
-<input type="number" @bind="newService.DurationMinutes" placeholder="Duration" />
-<input @bind="newService.Category" placeholder="Category" />
+<div class="mb-3">
 
-<button @onclick="AddService">Add Service</button>
+    <SearchBox @bind-SearchText="searchText" />
+
+    <input @bind="selectedCategory"
+           @bind:event="oninput"
+           placeholder="Filter Category" />
+
+</div>
+
+<hr />
+
+<div class="mb-3">
+
+    <input @bind="newService.Name" placeholder="Name" />
+
+    <input @bind="newService.Description" placeholder="Description" />
+
+    <input type="number"
+           step="0.01"
+           @bind="newService.Price"
+           placeholder="Price" />
+
+    <input type="number"
+           @bind="newService.DurationMinutes"
+           placeholder="Duration" />
+
+    <input @bind="newService.Category"
+           placeholder="Category" />
+
+    @if (isEditing)
+    {
+        <button class="btn btn-warning"
+                @onclick="SaveService">
+            Update Service
+        </button>
+
+        <button class="btn btn-secondary"
+                @onclick="CancelEdit">
+            Cancel
+        </button>
+    }
+    else
+    {
+        <button class="btn btn-primary"
+                @onclick="SaveService">
+            Add Service
+        </button>
+    }
+
+</div>
+
+@if (!string.IsNullOrEmpty(message))
+{
+    <p class="text-danger">@message</p>
+}
 
 <hr />
 
@@ -31,25 +80,34 @@
             <th>Price</th>
             <th>Duration</th>
             <th>Category</th>
-            <th></th>
+            <th>Actions</th>
         </tr>
     </thead>
 
     <tbody>
-        @foreach (var service in services)
+
+        @foreach (var service in FilteredServices)
         {
             <tr>
                 <td>@service.Name</td>
                 <td>@service.Price kr</td>
                 <td>@service.DurationMinutes min</td>
                 <td>@service.Category</td>
+
                 <td>
-                    <button @onclick="() => DeleteService(service.ServiceId)">
+                    <button class="btn btn-sm btn-warning"
+                            @onclick="() => EditService(service)">
+                        Edit
+                    </button>
+
+                    <button class="btn btn-sm btn-danger"
+                            @onclick="() => DeleteService(service.ServiceId)">
                         Delete
                     </button>
                 </td>
             </tr>
         }
+
     </tbody>
 </table>
 
@@ -59,6 +117,23 @@
 
     private Service newService = new();
 
+    private bool isEditing = false;
+
+    private string message = "";
+
+    private string searchText = "";
+
+    private string selectedCategory = "";
+
+    private IEnumerable<Service> FilteredServices =>
+        services.Where(s =>
+            (string.IsNullOrWhiteSpace(searchText) ||
+             s.Name.Contains(searchText, StringComparison.OrdinalIgnoreCase))
+            &&
+            (string.IsNullOrWhiteSpace(selectedCategory) ||
+             (s.Category?.Contains(selectedCategory,
+             StringComparison.OrdinalIgnoreCase) ?? false)));
+
     protected override void OnInitialized()
     {
         LoadServices();
@@ -66,29 +141,79 @@
 
     private void LoadServices()
     {
-        services = Db.Services.ToList();
+        services = Db.Services
+            .OrderBy(s => s.Name)
+            .ToList();
     }
 
-    private void AddService()
+    private void SaveService()
     {
-        Db.Services.Add(newService);
+        message = "";
+
+        if (string.IsNullOrWhiteSpace(newService.Name))
+        {
+            message = "Service name is required.";
+            return;
+        }
+
+        if (newService.Price <= 0)
+        {
+            message = "Price must be greater than 0.";
+            return;
+        }
+
+        if (newService.DurationMinutes <= 0)
+        {
+            message = "Duration must be greater than 0.";
+            return;
+        }
+
+        if (newService.ServiceId == 0)
+        {
+            Db.Services.Add(newService);
+        }
+
         Db.SaveChanges();
 
         newService = new Service();
 
+        isEditing = false;
+
         LoadServices();
+    }
+
+    private void EditService(Service service)
+    {
+        newService = service;
+
+        isEditing = true;
+    }
+
+    private void CancelEdit()
+    {
+        newService = new Service();
+
+        isEditing = false;
+
+        message = "";
     }
 
     private void DeleteService(int id)
     {
         var service = Db.Services.Find(id);
 
-        if (service is not null)
-        {
-            Db.Services.Remove(service);
-            Db.SaveChanges();
+        if (service is null)
+            return;
 
-            LoadServices();
+        Db.Services.Remove(service);
+
+        Db.SaveChanges();
+
+        LoadServices();
+
+        if (newService.ServiceId == id)
+        {
+            CancelEdit();
         }
     }
 }

@@ -1,26 +1,157 @@
 ﻿@page "/admin-dashboard"
 @rendermode InteractiveServer
 
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.EntityFrameworkCore
 @using HairSalonManagement.Data
+@using HairSalonManagement.Models
+
+@attribute [Authorize(Roles = "Admin")]
 
 @inject ApplicationDbContext Db
 
 <h3>Admin Dashboard</h3>
 
-<p>Total Services: @servicesCount</p>
-<p>Total Stylists: @stylistsCount</p>
-<p>Total Appointments: @appointmentsCount</p>
+<div class="card p-3 mb-3">
+
+    <p><strong>Total Services:</strong> @servicesCount</p>
+
+    <p><strong>Total Stylists:</strong> @stylistsCount</p>
+
+    <p><strong>Total Appointments:</strong> @appointmentsCount</p>
+
+    <p><strong>Pending Appointments:</strong> @pendingAppointments</p>
+
+    <p><strong>Appointments This Week:</strong> @appointmentsThisWeek</p>
+
+    <p><strong>Active Customers:</strong> @activeCustomers</p>
+
+    <p><strong>Most Popular Service:</strong> @mostPopularService</p>
+
+    <p><strong>Total Revenue:</strong> @totalRevenue kr</p>
+
+</div>
+
+<h4>Top Rated Stylists</h4>
+
+@if (topStylists.Any())
+{
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Stylist</th>
+                <th>Average Rating</th>
+            </tr>
+        </thead>
+
+        <tbody>
+
+            @foreach (var item in topStylists)
+            {
+                <tr>
+                    <td>@item.Name</td>
+                    <td>@item.Rating.ToString("0.0") / 5</td>
+                </tr>
+            }
+
+        </tbody>
+    </table>
+}
+else
+{
+    <p>No reviews yet.</p>
+}
 
 @code {
 
     private int servicesCount;
     private int stylistsCount;
     private int appointmentsCount;
+    private int pendingAppointments;
+    private int appointmentsThisWeek;
+    private int activeCustomers;
+
+    private decimal totalRevenue;
+
+    private string mostPopularService = "No bookings yet";
+
+    private List<StylistRating> topStylists = new();
 
     protected override void OnInitialized()
     {
         servicesCount = Db.Services.Count();
+
         stylistsCount = Db.Stylists.Count();
+
         appointmentsCount = Db.Appointments.Count();
+
+        pendingAppointments = Db.Appointments
+            .Count(a => a.Status == "Pending");
+
+        appointmentsThisWeek = Db.Appointments
+            .Count(a => a.AppointmentDate >= DateTime.Today.AddDays(-7));
+
+        activeCustomers = Db.Appointments
+            .Select(a => a.CustomerId)
+            .Distinct()
+            .Count();
+
+        totalRevenue = Db.Appointments
+            .Include(a => a.Service)
+            .ToList()
+            .Where(a => a.Status == "Completed" &&
+                        a.Service != null)
+            .Sum(a => a.Service!.Price);
+
+        var popularService = Db.Appointments
+            .ToList()
+            .GroupBy(a => a.ServiceId)
+            .OrderByDescending(g => g.Count())
+            .FirstOrDefault();
+
+        if (popularService != null)
+        {
+            var service = Db.Services
+                .FirstOrDefault(s => s.ServiceId == popularService.Key);
+
+            if (service != null)
+            {
+                mostPopularService = service.Name;
+            }
+        }
+
+        if (Db.Reviews.Any())
+        {
+            topStylists = Db.Reviews
+                .ToList()
+                .GroupBy(r => r.StylistId)
+                .Select(g => new StylistRating
+                {
+                    StylistId = g.Key,
+                    Rating = g.Average(x => x.Rating)
+                })
+                .OrderByDescending(x => x.Rating)
+                .Take(5)
+                .ToList();
+
+            foreach (var item in topStylists)
+            {
+                var stylist = Db.Stylists
+                    .FirstOrDefault(s => s.StylistId == item.StylistId);
+
+                item.Name = stylist == null
+                    ? "-"
+                    : $"{stylist.FirstName} {stylist.LastName}";
+            }
+        }
+    }
+
+    public class StylistRating
+    {
+        public int StylistId { get; set; }
+
+        public string Name { get; set; } = "";
+
+        public double Rating { get; set; }
     }
 }

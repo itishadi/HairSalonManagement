@@ -16,7 +16,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Folder Include="Controllers\" />
     <Folder Include="Pages\Admin\" />
     <Folder Include="Pages\Customer\" />
     <Folder Include="Services\" />
