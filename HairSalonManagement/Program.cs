@@ -1,9 +1,11 @@
 using HairSalonManagement.Components;
 using HairSalonManagement.Components.Account;
 using HairSalonManagement.Data;
+using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -49,7 +51,17 @@ builder.Services.AddSingleton<
 
 builder.Services.AddControllers();
 
-builder.Services.AddHttpClient();
+builder.Services.AddScoped(sp =>
+{
+    var navigationManager =
+        sp.GetRequiredService<NavigationManager>();
+
+    return new HttpClient
+    {
+        BaseAddress =
+            new Uri(navigationManager.BaseUri)
+    };
+});
 
 var app = builder.Build();
 

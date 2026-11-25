@@ -1,4 +1,4 @@
-﻿@page "/services"
+﻿@* @page "/services"
 @rendermode InteractiveServer
 
 @using HairSalonManagement.Models
@@ -210,6 +210,235 @@
         Db.SaveChanges();
 
         LoadServices();
+
+        if (newService.ServiceId == id)
+        {
+            CancelEdit();
+        }
+    }
+} *@
+
+
+
+@page "/services"
+@rendermode InteractiveServer
+
+@using HairSalonManagement.Models
+@using HairSalonManagement.Data
+@using Microsoft.AspNetCore.Authorization
+@using System.Net.Http.Json
+
+@attribute [Authorize(Roles = "Admin")]
+
+@inject HttpClient Http
+@inject ApplicationDbContext Db
+
+<h3>Services</h3>
+
+<p>Services count: @services.Count</p>
+
+<div class="mb-3">
+
+    <input @bind="searchText"
+           @bind:event="oninput"
+           placeholder="Search Service" />
+
+    <input @bind="selectedCategory"
+           @bind:event="oninput"
+           placeholder="Filter Category" />
+
+</div>
+
+<hr />
+
+<div class="mb-3">
+
+    <input @bind="newService.Name" placeholder="Name" />
+
+    <input @bind="newService.Description" placeholder="Description" />
+
+    <input type="number"
+           step="0.01"
+           @bind="newService.Price"
+           placeholder="Price" />
+
+    <input type="number"
+           @bind="newService.DurationMinutes"
+           placeholder="Duration" />
+
+    <input @bind="newService.Category"
+           placeholder="Category" />
+
+    @if (isEditing)
+    {
+        <button class="btn btn-warning"
+                @onclick="SaveService">
+            Update Service
+        </button>
+
+        <button class="btn btn-secondary"
+                @onclick="CancelEdit">
+            Cancel
+        </button>
+    }
+    else
+    {
+        <button class="btn btn-primary"
+                @onclick="SaveService">
+            Add Service
+        </button>
+    }
+
+</div>
+
+@if (!string.IsNullOrEmpty(message))
+{
+    <p class="text-danger">@message</p>
+}
+
+<hr />
+
+<table class="table">
+    <thead>
+        <tr>
+            <th>Name</th>
+            <th>Description</th>
+            <th>Price</th>
+            <th>Duration</th>
+            <th>Category</th>
+            <th>Actions</th>
+        </tr>
+    </thead>
+
+    <tbody>
+
+        @foreach (var service in FilteredServices)
+        {
+            <tr>
+                <td>@service.Name</td>
+                <td>@service.Description</td>
+                <td>@service.Price kr</td>
+                <td>@service.DurationMinutes min</td>
+                <td>@service.Category</td>
+
+                <td>
+                    <button class="btn btn-sm btn-warning"
+                            @onclick="() => EditService(service)">
+                        Edit
+                    </button>
+
+                    <button class="btn btn-sm btn-danger"
+                            @onclick="() => DeleteService(service.ServiceId)">
+                        Delete
+                    </button>
+                </td>
+            </tr>
+        }
+
+    </tbody>
+</table>
+
+@code {
+
+    private List<Service> services = new();
+
+    private Service newService = new();
+
+    private bool isEditing = false;
+
+    private string message = "";
+
+    private string searchText = "";
+
+    private string selectedCategory = "";
+
+    private IEnumerable<Service> FilteredServices =>
+        services.Where(s =>
+            (string.IsNullOrWhiteSpace(searchText) ||
+             s.Name.Contains(searchText,
+             StringComparison.OrdinalIgnoreCase))
+            &&
+            (string.IsNullOrWhiteSpace(selectedCategory) ||
+             (s.Category?.Contains(selectedCategory,
+             StringComparison.OrdinalIgnoreCase) ?? false)));
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadServices();
+    }
+
+    private async Task LoadServices()
+    {
+        services = await Http.GetFromJsonAsync<List<Service>>(
+            "api/services")
+            ?? new List<Service>();
+
+        services = services
+            .OrderBy(s => s.Name)
+            .ToList();
+    }
+
+    private async Task SaveService()
+    {
+        message = "";
+
+        if (string.IsNullOrWhiteSpace(newService.Name))
+        {
+            message = "Service name is required.";
+            return;
+        }
+
+        if (newService.Price <= 0)
+        {
+            message = "Price must be greater than 0.";
+            return;
+        }
+
+        if (newService.DurationMinutes <= 0)
+        {
+            message = "Duration must be greater than 0.";
+            return;
+        }
+
+        if (newService.ServiceId == 0)
+        {
+            Db.Services.Add(newService);
+        }
+
+        await Db.SaveChangesAsync();
+
+        newService = new Service();
+
+        isEditing = false;
+
+        await LoadServices();
+    }
+
+    private void EditService(Service service)
+    {
+        newService = service;
+        isEditing = true;
+    }
+
+    private void CancelEdit()
+    {
+        newService = new Service();
+        isEditing = false;
+        message = "";
+    }
+
+    private async Task DeleteService(int id)
+    {
+        var service = await Db.Services.FindAsync(id);
+
+        if (service is null)
+            return;
+
+        Db.Services.Remove(service);
+
+        await Db.SaveChangesAsync();
+
+        await LoadServices();
 
         if (newService.ServiceId == id)
         {
